@@ -1,0 +1,11 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+publish
+
+# Ignore Gradle build output directory
+build
+
+# Files to ignore
+.DS_Store
+gradle.properties
+secret-keys.gpg
