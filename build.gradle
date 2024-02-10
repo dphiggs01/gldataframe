@@ -17,7 +17,7 @@ plugins {
 }
 
 base {
-    version = '0.1.0'
+    version = '0.1.2'
     archivesName = rootProject.name
     group = 'io.github.dphiggs01'
 }
@@ -64,9 +64,9 @@ publishing {
     
     publications {
         mavenJava(MavenPublication) {
-            groupId = 'io.github.dphiggs01'
-            artifactId = 'gldataframe'
-            version = '0.1.0'
+            groupId = project.group
+            artifactId = rootProject.name
+            version = project.version
             from components.java
 
             pom {
@@ -98,15 +98,16 @@ publishing {
     }
 
     repositories {
-        maven {
-            name = "OSSRH"
-            url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-            credentials {
-                username = project.properties['ossrhUsername'] 
-                password = project.properties['ossrhPassword']
-            }
-        }
-    }
+         maven {
+            url = uri('./repository')
+    //         name = "central"
+    //         url = "https://central.sonatype.com/service/local/staging/deploy/maven2/"
+    //         credentials {
+    //             username = project.properties['ossrhUsername'] 
+    //             password = project.properties['ossrhPassword']
+    //         }
+         }
+     }
 }
 
 

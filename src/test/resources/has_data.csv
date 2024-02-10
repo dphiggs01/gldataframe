@@ -1,0 +1,4 @@
+firstNm,lastNm,salary,owns_home,home_value
+tom,smith,100000,True,100000
+anne,,50000,False,75000
+john,black,20000,True,150000

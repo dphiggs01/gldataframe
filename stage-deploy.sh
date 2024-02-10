@@ -1,10 +1,15 @@
 #!/bin/bash
+VERSION=`cat ./build.gradle |grep version|grep =|grep -v project`
+VERSION="${VERSION#*\'}"  # Remove everything before the first single quote
+VERSION="${VERSION%\'*}"  # Remove everything after the last single quote
+echo "$VERSION"
+
 PRJ_HOME="/Users/dan/Code/groovy/gldataframe"
 BIULD_LIBS="${PRJ_HOME}/build/libs"
 BIULD_EXT="${PRJ_HOME}/build/publications/mavenJava"
 
 PUBLISH_DIR="${PRJ_HOME}/publish"
-ARTIFACTS_DIR="${PUBLISH_DIR}/io/github/dphiggs01/gldataframe/0.1.0/"
+ARTIFACTS_DIR="${PUBLISH_DIR}/io/github/dphiggs01/gldataframe/${VERSION}/"
 
 generate_md5_files() {
     local directory_path="$1"
@@ -51,8 +56,8 @@ mkdir -p ${ARTIFACTS_DIR}
 
 # Copy the files to be published
 cp ${BIULD_LIBS}/* ${ARTIFACTS_DIR}
-cp ${BIULD_EXT}/pom-default.xml  ${ARTIFACTS_DIR}/gldataframe-0.1.0.pom
-cp ${BIULD_EXT}/pom-default.xml.asc  ${ARTIFACTS_DIR}/gldataframe-0.1.0.pom.asc
+cp ${BIULD_EXT}/pom-default.xml  ${ARTIFACTS_DIR}/gldataframe-${VERSION}.pom
+cp ${BIULD_EXT}/pom-default.xml.asc  ${ARTIFACTS_DIR}/gldataframe-${VERSION}.pom.asc
 
 # Get MD5 for the files to be published
 generate_md5_files  ${ARTIFACTS_DIR}

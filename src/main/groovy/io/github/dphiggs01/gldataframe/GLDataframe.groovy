@@ -1,6 +1,7 @@
 package io.github.dphiggs01.gldataframe
 
- 
+ import io.github.dphiggs01.gldataframe.utils.GLLogger
+
 /**
  * GLDataframe class represents a data structure for handling and manipulating tabular data.
  * It offers various methods for performing operations such as reading, writing, filtering,
@@ -8,6 +9,7 @@ package io.github.dphiggs01.gldataframe
  * designed to be flexible and extensible for data analysis and processing tasks.
  */
 class GLDataframe {
+    def logger = GLLogger.getLogger("debug") 
     List<List<String>> data = []
     List<String> colHeader = []
     List<Object> schema =[]
@@ -23,19 +25,78 @@ class GLDataframe {
      * Default constructor for creating an empty GLDataframe.
      */
     GLDataframe() {
-        //Default Constructor
+        //Empty data and colHeader
     }
 
     /**
-     * Constructor for creating a GLDataframe from input data and header.
+     * Constructs a GLDataframe with the specified data and column headers.
      *
-     * @param inputData List of lists representing the data.
-     * @param header List of strings representing column headers.
+     * @param data      List of lists representing the data.
+     * @param colHeader List of strings representing column headers.
+     * @throws GLDataframeException If the specified conditions are not met.
      */
-    GLDataframe(List<List<String>> inputData, List<String> header) {
-        // If you are given an empty list create a null entry for each column
-        data = inputData.isEmpty()? [(1..header.size()).collect { null }] : inputData
-        colHeader = header
+    GLDataframe(List<List<String>> data, List<String> colHeader) {
+        // Check conditions
+        if (colHeader == null || colHeader.isEmpty()) {
+            throw new GLDataframeException("Column headers cannot be null or empty.")
+        }
+
+        if (!isValidData(data, colHeader.size())) {
+            throw new GLDataframeException("Invalid data format. Must be a List<List<Object>> with Apporpriate Datatypes and inner row size must align with colHeader size.")
+        }
+
+        // If conditions are met, assign values
+        this.data = data.isEmpty()? [(1..colHeader.size()).collect { null }] : data
+        this.colHeader = colHeader
+    }
+
+    /**
+     * Constructs a GLDataframe with parameters provided as a Map.
+     *
+     * This constructor is not allowed and will always throw a GLDataframeException,
+     * indicating that instantiation using a Map is invalid. Instead, use the default
+     * constructor or other valid constructors for creating instances of GLDataframe.
+     *
+     * @param args A Map representing parameters for instantiation.
+     * @throws GLDataframeException Always thrown to indicate invalid instantiation.
+     */
+    GLDataframe(Map<String, ?> args) {
+        throw new GLDataframeException("Invalid instantiation. Use default constructor or other valid constructors")
+    }
+
+    /**
+     * Checks the validity of the provided 'data' for a List<List<Object>> structure.
+     *
+     * @param data         The data to be validated.
+     * @param expectedSize The expected size of each inner list (row).
+     * @return True if 'data' is a List<List<Object>> with each row having the expected size
+     *         and every item in the inner list being of a valid GLDataframe data type, false otherwise.
+     */
+    private boolean isValidData(List<List<Object>> data, int expectedSize) {
+        return data instanceof List &&
+            data.every { innerList ->
+                innerList instanceof List && innerList.size() == expectedSize &&
+                innerList.every { isValidGLDataframeDataType(it) }
+            }
+    }
+
+    /**
+     * Checks if the provided 'obj' is a valid data type for GLDataframe.
+     *
+     * @param obj The object to be validated for GLDataframe data types.
+     * @return True if 'obj' is a valid GLDataframe data type, false otherwise.
+     */
+    private boolean isValidGLDataframeDataType(Object obj) {
+        def objectType = obj == null?'NULL':obj.class.name
+        if (obj == null) {
+            return true
+        } 
+        // List to be updated as needed
+        return obj instanceof Integer ||
+            obj instanceof Double ||
+            obj instanceof String ||
+            obj instanceof java.math.BigDecimal ||
+            obj instanceof Boolean;
     }
 
     /**
@@ -45,9 +106,10 @@ class GLDataframe {
      */
     @Override
     String toString() {
-        def outString = colHeader.join(", ") + "\n" 
-        outString += data.collect { it.join(", ") }.join("\n")
-        outString += "\nSIZE="+data.size()
+        def outString = "Header: " + colHeader.join(", ") + "\n" 
+        outString += "Data-10:\n"
+        outString += data.take(10).collect { it.join(", ") }.join("\n")
+        outString += "\nData Size="+data.size()
         return outString
     }
 
@@ -62,15 +124,13 @@ class GLDataframe {
     static GLDataframe readCSV(String csvFileName, boolean header = true, List<Integer> usecols = null) {
         def csvData = []
         def csvFile = new File(csvFileName)
-
         if (!csvFile.exists()) {
-            println("Error: Input File '$csvFileName' does not exist.")
+            throw new GLDataframeException("Input File '$csvFileName' does not exist.")
         } else {
             csvFile.eachLine { line ->
                 def row = line.split(',', -1).collect {
                     it.trim() == '' ? null : it.trim()
                 }
-
                 if (usecols == null || usecols.isEmpty()) {
                     csvData.add(row)
                 } else {
@@ -81,7 +141,6 @@ class GLDataframe {
                 }
             }
         }
-
         def dataframe
         if (header && csvData.size() > 0) {
             dataframe = new GLDataframe(csvData.tail(), csvData.first())
@@ -89,7 +148,6 @@ class GLDataframe {
             List<String> colHeader = (1..csvData.first().size()).collect { it.toString() }
             dataframe = new GLDataframe(csvData, colHeader)
         }
-
         return dataframe
     }
 
@@ -117,11 +175,13 @@ class GLDataframe {
         writer.close()
     }
 
+
     /**
-     * Returns a subset of columns from the GLDataframe.
-     * If columns are given in a new order the dataframe will be reorginized
-     * 
-     * @param colsList ArrayList containing column names to be included in the subset.
+     * The 'cols' method serves dual purposes:
+     * 1. If provided with a subset of column names, it returns a DataFrame containing only those columns.
+     * 2. If provided with a new order for the columns, it returns a DataFrame with the specified column order.
+     *
+     * @param colsList ArrayList containing column names to be included in the result.
      */
     def cols(ArrayList colsList) {
         def colsListInt = colsList
@@ -154,8 +214,7 @@ class GLDataframe {
 
         // Check if the List has ALL Strings or ALL Intergers
         if (!colsList.every { it instanceof Integer } && !colsList.every { it instanceof String } ) {
-            println("Error: Datatype in colsList must be ALL Int or ALL String")
-            return null
+            throw new GLDataframeException("Datatype in colsList must be ALL Int or ALL String.")
         }
 
         // If we are given Col Names convert to Index Position
@@ -168,21 +227,19 @@ class GLDataframe {
 
         // Check if we have an empty list
         if (colsList.isEmpty()) {
-            println("Error: No valid column names were provided")
-            return null
+            throw new GLDataframeException("No valid column names were provided.")
         }
         
         // Check if ALL Index positions are in the range of the column headers
         if (!colsListInt.every { it >= 0 && it < colHeader.size() }) {
-            println("Error: One or more Column Indexes provided are out of Range or Column Name is incorrect.")
-            return null
+            throw new GLDataframeException("One or more Column Indexes provided are out of Range or Column Name is incorrect.")
         }
 
         return colsListInt
     }
 
-     /**
-     * Joins the provided GLDataframe to the right of this dataframe.
+    /**
+     * Joins columns by row index, filling null values for columns if the left or right DataFrame has more rows.
      *
      * @param rightData The GLDataframe to be joined.
      */
@@ -283,6 +340,7 @@ class GLDataframe {
      * @return A new GLDataframe with the added column.
      */
     def addCol(colName, applyClosure) {
+        logger.trace("START GLDataframe.addCol")
         def newHeader  = getColHeader() + colName
         def List<List<String>> newData = []
         data.each { row ->
@@ -294,6 +352,7 @@ class GLDataframe {
             // Append the current row to the new dataframe data
             newData << newRow
         }
+         logger.trace("FINISH GLDataframe.addCol")
         return new GLDataframe(newData, newHeader)
     }
 
@@ -331,7 +390,13 @@ class GLDataframe {
         return new GLDataframe(data, newHeader)
     }
 
-	private def inferDataType(String input) {
+	/**
+     * Infers the data type of the provided input string.
+     *
+     * @param input The input string for which the data type is to be inferred.
+     * @return The Object Type Infered
+     */
+    private def inferDataType(String input) {
         if (input == null) {
             return String
         }
@@ -352,10 +417,10 @@ class GLDataframe {
     }
 
     /**
-     * Private method to infer the data type of a given input.
+     * Private method that infers the data typed of each column.
      *
-     * @param input The input value to infer the data type.
-     * @return The inferred data type.
+     * It sets the internal variable 'schema' after inferring the data type based on the first row of data.
+     * Note that this inference is not guaranteed to be correct in all cases.
      */
     private def inferSchema() {
         if (data) {
@@ -453,13 +518,14 @@ class GLDataframe {
     }
 
     /**
-     * Checks if the GLDataframe is empty.
+     * Sorts a dataframe by the given column names
      *
-     * @return true if the GLDataframe is empty, false otherwise.
+     * @param colsList column header to sort by.
+     * @param ascend boolean to determine sort order .
+     * @return GLDataframe in sorted order.
      */
     def sortBy(colsList, ascend = true) {
         def colsListInt = getColHeaderIndexList(colsList)
-        println("colsListInt"+colsListInt)
         def dataClone = data.clone()
         def dataCloneSorted = dataClone.sort { a, b ->
             def result = colsListInt.collect { col -> a[col] <=> b[col] }.find { it != 0 } ?: 0
@@ -469,7 +535,7 @@ class GLDataframe {
     }
 
     /**
-     * Concatenates another GLDataframe to this GLDataframe.
+     * Concatenates a GLDataframe to this GLDataframe and returns a new Dataframe.
      *
      * @param concatData The GLDataframe to concatenate.
      * @return A new GLDataframe containing the concatenated data.
@@ -489,7 +555,7 @@ class GLDataframe {
             return new GLDataframe(dataClone, headerA)
         } 
         
-        // The headers are not equal the dat will not be concated
-        return null
+        // The headers are not equal the data will not be concated
+        throw new GLDataframeException("concat failed. GLDataframes are incompatible for conatination.")
     }
 }
